@@ -27,6 +27,8 @@ jobs:
                             "https://api.github.com/repos/$REPO/dependabot/alerts?state=open&per_page=100")
 
           echo "$RESPONSE" > alerts.json
+          echo "[INFO] API raw response:"
+          cat alerts.json
 
           CRITICAL=$(jq '[.[] | select(.security_advisory.severity == "critical")] | length' alerts.json)
           HIGH=$(jq '[.[] | select(.security_advisory.severity == "high")] | length' alerts.json)
