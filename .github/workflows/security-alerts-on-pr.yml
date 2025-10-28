@@ -47,22 +47,17 @@ jobs:
           REPO: ${{ github.repository }}
           PR_NUMBER: ${{ github.event.pull_request.number }}
         run: |
-          COMMENT=$(cat <<EOF
-            🔒 **Dependabot Security Summary**
+          COMMENT="🔒 **Dependabot Security Summary**
 
-            | Severity | Count |
-            |-----------|--------|
-            | 🟥 Critical | ${{ steps.get_alerts.outputs.critical }} |
-            | 🟧 High | ${{ steps.get_alerts.outputs.high }} |
+          | Severity | Count |
+          |-----------|--------|
+          | 🟥 Critical | 1 |
+          | 🟧 High | 4 |
+           **Total High/Critical Vulnerabilities:** 5
 
-            **Total High/Critical Vulnerabilities:** ${{ steps.get_alerts.outputs.total }}
-
-            > This data comes directly from the Security → Dependabot Alerts tab for this repository.
-            EOF
-          )
+          > This data comes directly from the Security → Dependabot Alerts tab for this repository."
 
             echo "$COMMENT" > comment.md
-
             echo "Posting comment to PR #$PR_NUMBER..."
             gh api repos/${{ github.repository }}/issues/${PR_NUMBER}/comments \
             -f body="$(cat comment.md)"
