@@ -33,7 +33,6 @@ jobs:
           CRITICAL=$(jq '[.[] | select(.security_advisory.severity == "critical")] | length' alerts.json)
           HIGH=$(jq '[.[] | select(.security_advisory.severity == "high")] | length' alerts.json)
           TOTAL=$((CRITICAL + HIGH))
-
           echo "critical=$CRITICAL" >> $GITHUB_OUTPUT
           echo "high=$HIGH" >> $GITHUB_OUTPUT
           echo "total=$TOTAL" >> $GITHUB_OUTPUT
@@ -46,6 +45,9 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           REPO: ${{ github.repository }}
           PR_NUMBER: ${{ github.event.pull_request.number }}
+          CRITICAL: ${{ steps.get_alerts.outputs.critical }}
+          HIGH: ${{ steps.get_alerts.outputs.high }}
+          TOTAL: ${{ steps.get_alerts.outputs.total }}
         run: |
           COMMENT="🔒 **Dependabot Security Summary**
 
