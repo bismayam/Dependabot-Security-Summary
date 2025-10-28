@@ -53,7 +53,6 @@ jobs:
           |-----------|--------|
           | 🟥 Critical | 1 |
           | 🟧 High | 4 |
-           **Total High/Critical Vulnerabilities:** 5
 
           > This data comes directly from the Security → Dependabot Alerts tab for this repository."
 
@@ -65,4 +64,4 @@ jobs:
 
       - name: No High/Critical vulnerabilities found
         if: ${{ steps.get_alerts.outputs.total == '0' }}
-        run: echo "✅ No High or Critical Dependabot alerts found. Skipping PR comment."
+        run: echo "✅ No High or Critical Dependabot alerts found."
