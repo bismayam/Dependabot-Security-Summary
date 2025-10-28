@@ -26,5 +26,4 @@ This helps maintainers stay aware of unresolved security risks in real time.
 | `main.go` | Simple Go code importing the vulnerable package. |
 | `README.md` | You’re reading it — explains setup and usage. |
 
----# Dependabot-Security-Summary
-Dependabot Security Summary on PR
+

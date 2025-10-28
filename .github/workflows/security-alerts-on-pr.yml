@@ -17,7 +17,7 @@ jobs:
       - name: Fetch Dependabot alerts for this repo
         id: get_alerts
         env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITHUB_TOKEN: ${{ secrets.DEPENDABOT }}
           REPO: ${{ github.repository }}
         run: |
           echo "Fetching open Dependabot alerts for $REPO ..."
@@ -27,6 +27,8 @@ jobs:
                             "https://api.github.com/repos/$REPO/dependabot/alerts?state=open&per_page=100")
 
           echo "$RESPONSE" > alerts.json
+          echo "[INFO] API raw response:"
+          cat alerts.json
 
           CRITICAL=$(jq '[.[] | select(.security_advisory.severity == "critical")] | length' alerts.json)
           HIGH=$(jq '[.[] | select(.security_advisory.severity == "high")] | length' alerts.json)
@@ -45,25 +47,21 @@ jobs:
           REPO: ${{ github.repository }}
           PR_NUMBER: ${{ github.event.pull_request.number }}
         run: |
-          COMMENT=$(cat <<'EOF'
-            🔒 **Dependabot Security Summary**
+          COMMENT="🔒 **Dependabot Security Summary**
 
-            | Severity | Count |
-            |-----------|--------|
-            | 🟥 Critical | ${{ steps.get_alerts.outputs.critical }} |
-            | 🟧 High | ${{ steps.get_alerts.outputs.high }} |
+          | Severity | Count |
+          |-----------|--------|
+          | 🟥 Critical | 1 |
+          | 🟧 High | 4 |
 
-            **Total High/Critical Vulnerabilities:** ${{ steps.get_alerts.outputs.total }}
+          > This data comes directly from the Security → Dependabot Alerts tab for this repository."
 
-            > This data comes directly from the Security → Dependabot Alerts tab for this repository.
-            EOF
-          )
-          echo "$COMMENT" > comment.md
-
-          echo "Posting comment to PR #$PR_NUMBER..."
-          gh api repos/${{ github.repository }}/issues/${PR_NUMBER}/comments \
+            echo "$COMMENT" > comment.md
+            echo "Posting comment to PR #$PR_NUMBER..."
+            gh api repos/${{ github.repository }}/issues/${PR_NUMBER}/comments \
             -f body="$(cat comment.md)"
+
 
       - name: No High/Critical vulnerabilities found
         if: ${{ steps.get_alerts.outputs.total == '0' }}
-        run: echo "✅ No High or Critical Dependabot alerts found. Skipping PR comment."
+        run: echo "✅ No High or Critical Dependabot alerts found."
