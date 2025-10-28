@@ -6,7 +6,7 @@ import (
 	"golang.org/x/crypto/ssh"
 )
 
-func main() {
+func example() {
 	fmt.Println("Example insecure Go app using old x/crypto package")
 
 	// This code doesn't actually exploit anything — just imports a package
