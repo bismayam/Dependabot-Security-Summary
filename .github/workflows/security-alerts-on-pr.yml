@@ -17,7 +17,7 @@ jobs:
       - name: Fetch Dependabot alerts for this repo
         id: get_alerts
         env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITHUB_TOKEN: ${{ secrets.DEPENDABOT }}
           REPO: ${{ github.repository }}
         run: |
           echo "Fetching open Dependabot alerts for $REPO ..."
@@ -43,7 +43,7 @@ jobs:
       - name: Post PR comment with summary
         if: ${{ steps.get_alerts.outputs.total != '0' }}
         env:
-          GITHUB_TOKEN: ${{ secrets.DEPENDABOT }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           REPO: ${{ github.repository }}
           PR_NUMBER: ${{ github.event.pull_request.number }}
         run: |
