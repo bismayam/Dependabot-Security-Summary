@@ -51,8 +51,8 @@ jobs:
 
           | Severity | Count |
           |-----------|--------|
-          | 🟥 Critical | 1 |
-          | 🟧 High | 4 |
+          | 🟥 Critical | ${CRITICAL} |
+          | 🟧 High | ${HIGH} |
 
           > This data comes directly from the Security → Dependabot Alerts tab for this repository."
 
