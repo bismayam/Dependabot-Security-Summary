@@ -47,7 +47,7 @@ jobs:
           REPO: ${{ github.repository }}
           PR_NUMBER: ${{ github.event.pull_request.number }}
         run: |
-          COMMENT=$(cat <<'EOF'
+          COMMENT=$(cat <<EOF
             🔒 **Dependabot Security Summary**
 
             | Severity | Count |
@@ -60,11 +60,13 @@ jobs:
             > This data comes directly from the Security → Dependabot Alerts tab for this repository.
             EOF
           )
-          echo "$COMMENT" > comment.md
 
-          echo "Posting comment to PR #$PR_NUMBER..."
-          gh api repos/${{ github.repository }}/issues/${PR_NUMBER}/comments \
+            echo "$COMMENT" > comment.md
+
+            echo "Posting comment to PR #$PR_NUMBER..."
+            gh api repos/${{ github.repository }}/issues/${PR_NUMBER}/comments \
             -f body="$(cat comment.md)"
+
 
       - name: No High/Critical vulnerabilities found
         if: ${{ steps.get_alerts.outputs.total == '0' }}
