@@ -43,7 +43,7 @@ jobs:
       - name: Post PR comment with summary
         if: ${{ steps.get_alerts.outputs.total != '0' }}
         env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITHUB_TOKEN: ${{ secrets.DEPENDABOT }}
           REPO: ${{ github.repository }}
           PR_NUMBER: ${{ github.event.pull_request.number }}
         run: |
