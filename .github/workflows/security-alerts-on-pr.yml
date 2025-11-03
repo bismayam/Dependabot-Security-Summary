@@ -17,7 +17,7 @@ jobs:
       - name: Fetch Dependabot alerts for this repo
         id: get_alerts
         env:
-          GITHUB_TOKEN: ${{ secrets.DEPENDABOT }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           REPO: ${{ github.repository }}
         run: |
           echo "Fetching open Dependabot alerts for $REPO ..."
