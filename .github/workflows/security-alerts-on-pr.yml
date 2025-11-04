@@ -23,7 +23,7 @@ jobs:
       - name: Fetch Dependabot alerts
         id: get_alerts
         env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITHUB_TOKEN: ${{ secrets.DEPENDABOT }}
         run: .github/scripts/fetch-dependabot-alerts.sh
 
       - name: Post PR comment with summary
