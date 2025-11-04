@@ -18,24 +18,12 @@ jobs:
         uses: actions/checkout@v4
 
       - name: Make scripts executable
-        run: chmod +x .github/scripts/*.sh
+        run: chmod +x .github/scripts/fetch-dependabot-alerts.sh
 
       - name: Fetch Dependabot alerts
         id: get_alerts
         env:
-          GITHUB_TOKEN: ${{ secrets.DEPENDABOT }}
-        run: .github/scripts/fetch-dependabot-alerts.sh
-
-      - name: Post PR comment with summary
-        if: ${{ steps.get_alerts.outputs.total != '0' }}
-        env:
+          PAT_TOKEN: ${{ secrets.DEPENDABOT }}
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           PR_NUMBER: ${{ github.event.pull_request.number }}
-          CRITICAL: ${{ steps.get_alerts.outputs.critical }}
-          HIGH: ${{ steps.get_alerts.outputs.high }}
-          TOTAL: ${{ steps.get_alerts.outputs.total }}
-        run: .github/scripts/post-pr-comment.sh
-
-      - name: No vulnerabilities found
-        if: ${{ steps.get_alerts.outputs.total == '0' }}
-        run: echo "✅ No High or Critical Dependabot alerts found."
+        run: .github/scripts/fetch-dependabot-alerts.sh
