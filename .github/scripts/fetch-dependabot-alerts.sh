@@ -47,21 +47,19 @@ fi
 
 echo "Building Markdown table for Dependabot alerts..."
 
-# Generate Markdown table
 ALERTS_TABLE=$(echo "$ALERTS" | jq -r '
-(
-  ["Severity", "Summary (link)", "Created At"],
-  ["---", "---", "---"],
-  (.[] | select(.security_advisory.severity == "critical" or .security_advisory.severity == "high") | [
-    .security_advisory.severity,
-    "[\(.security_advisory.summary)](\(.html_url))",
-    (.created_at | split("T")[0])
-  ])
-)
-| @tsv
-| gsub("\t"; " | ")
-| . as $lines
-| ($lines | map(" | " + . + " |")) | .[]
+  (["Severity", "Summary (link)", "Created At"],
+   ["---", "---", "---"],
+   (.[] | select(.security_advisory.severity == "critical" or .security_advisory.severity == "high") | [
+     .security_advisory.severity,
+     "[\(.security_advisory.summary)](\(.html_url))",
+     (.created_at | split("T")[0])
+   ]))
+  | @tsv
+  | gsub("\t"; " | ")
+  | split("\n")
+  | map(" | " + . + " |")
+  | .[]
 ')
 
 # Build the PR comment
