@@ -109,12 +109,22 @@ JQ_FILTER='
 
 # Note: The 'gh' CLI automatically respects the GH_TOKEN env variable.
 
-GRAPHQL_DATA=$(GITHUB_TOKEN="$PAT_TOKEN" gh api graphql -f owner="$OWNER" -f repo="$REPO_NAME" -q - <<< "$GRAPHQL_QUERY")
 
+GRAPHQL_DATA=$(GITHUB_TOKEN="$PAT_TOKEN" gh api graphql \
+  -f query="$GRAPHQL_QUERY" \
+  -F owner="$OWNER" \
+  -F repo="$REPO_NAME")
 
 if [ -z "$GRAPHQL_DATA" ]; then
   echo "Error: Failed to fetch data from GitHub API. Check GH_API_TOKEN permissions."
   exit 1
+fi
+
+ALERT_COUNT=$(echo "$GRAPHQL_DATA" | jq '.data.repository.vulnerabilityAlerts.nodes | length')
+
+if [ "$ALERT_COUNT" -eq 0 ]; then
+  echo "✅ No open Dependabot alerts found."
+  exit 0
 fi
 
 echo "Posting Dependabot alerts in PR $PR_NUMBER..."
