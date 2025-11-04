@@ -110,7 +110,7 @@ EOF
 #    `--body-file -` tells the command to read the comment body from standard input (stdin).
 
 # Note: The 'gh' CLI automatically respects the GH_TOKEN env variable.
-GRAPHQL_DATA=$(GITHUB_TOKEN="$PAT_TOKEN" gh api graphql -f owner="$OWNER" -f repo="$REPO_NAME" -q "$GRAPHQL_QUERY")
+GRAPHQL_DATA=$(echo "$GRAPHQL_QUERY" | GITHUB_TOKEN="$PAT_TOKEN" gh api graphql -f owner="$OWNER" -f repo="$REPO_NAME")
 
 if [ -z "$GRAPHQL_DATA" ]; then
   echo "Error: Failed to fetch data from GitHub API. Check GH_API_TOKEN permissions."
