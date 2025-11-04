@@ -61,9 +61,9 @@ echo "Fetching Dependabot alerts for $REPO..."
 # This query fetches the first 100 open vulnerability alerts.
 # It requests the fields you specified: severity, summary, path, created_at,
 # and htmlUrl (for the hyperlink).
-GRAPHQL_QUERY=$(cat <<EOF
-query(\$owner: String!, \$repo: String!) {
-  repository(owner: \$owner, name: \$repo) {
+GRAPHQL_QUERY='
+query($owner: String!, $repo: String!) {
+  repository(owner: $owner, name: $repo) {
     vulnerabilityAlerts(first: 100, states: OPEN) {
       nodes {
         createdAt
@@ -79,29 +79,27 @@ query(\$owner: String!, \$repo: String!) {
     }
   }
 }
-EOF
-)
+'
 
 # --- 2. Define the JQ Filter ---
 # This filter transforms the JSON response into a Markdown table.
 # It creates the header, then iterates over each alert (.nodes[])
 # and builds a table row, formatting the summary as a Markdown link.
-JQ_FILTER=$(cat <<EOF
+JQ_FILTER='
 (
   ["Severity", "Summary", "Path", "Created At"],
   ["---", "---", "---", "---"],
   (.data.repository.vulnerabilityAlerts.nodes[] | [
     .securityVulnerability.severity,
     "[\(.advisory.summary)](\(.htmlUrl))",
-    "\`\(.vulnerableManifestPath)\`",
+    "`\(.vulnerableManifestPath)`",
     (.createdAt | split("T") | .[0])
   ])
 )
 | @tsv
 | gsub("\t"; " | ")
 | "\(. ) |"
-EOF
-)
+'
 
 # --- 3. Execute the Commands ---
 # 1. `gh api graphql...`: Runs the query, passing the owner and repo as variables.
@@ -110,13 +108,15 @@ EOF
 #    `--body-file -` tells the command to read the comment body from standard input (stdin).
 
 # Note: The 'gh' CLI automatically respects the GH_TOKEN env variable.
-GRAPHQL_DATA=$(echo "$GRAPHQL_QUERY" | GITHUB_TOKEN="$PAT_TOKEN" gh api graphql -f owner="$OWNER" -f repo="$REPO_NAME")
+GRAPHQL_DATA=$(echo "$GRAPHQL_QUERY" | GITHUB_TOKEN="$PAT_TOKEN" gh api graphql -f owner="$OWNER" -f repo="$REPO_NAME" -q -)
+
 
 if [ -z "$GRAPHQL_DATA" ]; then
   echo "Error: Failed to fetch data from GitHub API. Check GH_API_TOKEN permissions."
   exit 1
 fi
 
+echo "Posting Dependabot alerts in PR $PR_NUMBER..."
 
 echo "$GRAPHQL_DATA" | \
   jq -r "$JQ_FILTER" | \
