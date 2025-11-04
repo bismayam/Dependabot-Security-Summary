@@ -48,16 +48,17 @@ fi
 echo "Building Markdown table for Dependabot alerts..."
 
 ALERTS_TABLE=$(echo "$ALERTS" | jq -r '
-  # Select only high or critical alerts and sort by severity
-  ( .[]
+  # Collect critical/high alerts into an array
+  [ .[]
     | select(.security_advisory.severity == "critical" or .security_advisory.severity == "high")
     | {severity: .security_advisory.severity, summary: .security_advisory.summary, html_url: .html_url, created_at: .created_at}
-  )
+  ]
+  # Sort array so critical alerts come first
   | sort_by(.severity | if . == "critical" then 0 else 1 end)
+  # Build table rows
   | (["Severity", "Summary (link)", "Created At"],
      ["---", "---", "---"],
-     .[]
-     | [.severity, "[\(.summary)](\(.html_url))", (.created_at | split("T")[0])])
+     .[] | [.severity, "[\(.summary)](\(.html_url))", (.created_at | split("T")[0])])
   | @tsv
   | gsub("\t"; " | ")
   | split("\n")
