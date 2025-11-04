@@ -24,13 +24,14 @@ fi
 echo "$RESPONSE" > alerts.json
 echo "[INFO] API raw response saved to alerts.json"
 
-# Normalize: Some GitHub responses are objects with a 'alerts' array
-ALERTS=$(jq '.alerts // .' alerts.json)
+# Normalize JSON so it works whether the root is an array or an object with 'alerts'
+ALERTS=$(jq 'if type == "object" and has("alerts") then .alerts else . end' alerts.json)
 
 # Count critical and high alerts
 CRITICAL=$(echo "$ALERTS" | jq '[.[] | select(.security_advisory.severity == "critical")] | length')
 HIGH=$(echo "$ALERTS" | jq '[.[] | select(.security_advisory.severity == "high")] | length')
 TOTAL=$((CRITICAL + HIGH))
+
 
 # Output for GitHub Actions
 echo "critical=$CRITICAL" >> "$GITHUB_OUTPUT"
