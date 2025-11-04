@@ -2,13 +2,14 @@
 set -euo pipefail
 
 REPO=${GITHUB_REPOSITORY}
-GITHUB_TOKEN=${GITHUB_TOKEN}
 
 echo "Fetching open Dependabot alerts for $REPO ..."
 
-RESPONSE=$(curl -s -H "Authorization: token $GITHUB_TOKEN" \
-                  -H "Accept: application/vnd.github+json" \
-                  "https://api.github.com/repos/$REPO/dependabot/alerts?state=open&per_page=100")
+# Use gh api instead of curl
+RESPONSE=$(gh api "repos/$REPO/dependabot/alerts" \
+    --method GET \
+    --field state=open \
+    --field per_page=100)
 
 echo "$RESPONSE" > alerts.json
 echo "[INFO] API raw response:"
