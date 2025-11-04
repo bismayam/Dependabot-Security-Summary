@@ -6,64 +6,36 @@ on:
 
 permissions:
   contents: read
-  security-events: read     # Required to access Dependabot alerts
-  pull-requests: write       # Needed to post a PR comment
+  security-events: read
+  pull-requests: write
 
 jobs:
   dependabot-alert-check:
     runs-on: ubuntu-latest
 
     steps:
-      - name: Fetch Dependabot alerts for this repo
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Make scripts executable
+        run: chmod +x .github/scripts/*.sh
+
+      - name: Fetch Dependabot alerts
         id: get_alerts
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          REPO: ${{ github.repository }}
-        run: |
-          echo "Fetching open Dependabot alerts for $REPO ..."
-
-          RESPONSE=$(curl -s -H "Authorization: token $GITHUB_TOKEN" \
-                            -H "Accept: application/vnd.github+json" \
-                            "https://api.github.com/repos/$REPO/dependabot/alerts?state=open&per_page=100")
-
-          echo "$RESPONSE" > alerts.json
-          echo "[INFO] API raw response:"
-          cat alerts.json
-
-          CRITICAL=$(jq '[.[] | select(.security_advisory.severity == "critical")] | length' alerts.json)
-          HIGH=$(jq '[.[] | select(.security_advisory.severity == "high")] | length' alerts.json)
-          TOTAL=$((CRITICAL + HIGH))
-          echo "critical=$CRITICAL" >> $GITHUB_OUTPUT
-          echo "high=$HIGH" >> $GITHUB_OUTPUT
-          echo "total=$TOTAL" >> $GITHUB_OUTPUT
-
-          echo "Found $CRITICAL critical and $HIGH high severity vulnerabilities."
+        run: .github/scripts/fetch-dependabot-alerts.sh
 
       - name: Post PR comment with summary
         if: ${{ steps.get_alerts.outputs.total != '0' }}
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          REPO: ${{ github.repository }}
           PR_NUMBER: ${{ github.event.pull_request.number }}
           CRITICAL: ${{ steps.get_alerts.outputs.critical }}
           HIGH: ${{ steps.get_alerts.outputs.high }}
           TOTAL: ${{ steps.get_alerts.outputs.total }}
-        run: |
-          COMMENT="🔒 **Dependabot Security Summary**
+        run: .github/scripts/post-pr-comment.sh
 
-          | Severity | Count |
-          |-----------|--------|
-          | 🟥 Critical | ${CRITICAL} |
-          | 🟧 High | ${HIGH} |
-
-          > This data comes directly from the Security → Dependabot Alerts tab for this repository."
-
-            echo "$COMMENT" > comment.md
-            echo "Posting comment to PR #$PR_NUMBER..."
-            gh api repos/${{ github.repository }}/issues/${PR_NUMBER}/comments \
-            -f body="$(cat comment.md)"
-
-
-      - name: No High/Critical vulnerabilities found
+      - name: No vulnerabilities found
         if: ${{ steps.get_alerts.outputs.total == '0' }}
         run: echo "✅ No High or Critical Dependabot alerts found."
