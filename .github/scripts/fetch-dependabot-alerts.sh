@@ -47,14 +47,16 @@ fi
 
 echo "Building Markdown table for Dependabot alerts..."
 
-ALERTS_TABLE=$(echo "$ALERTS" | jq -r '
-  # Collect critical/high alerts into an array
-  [ .[]
-    | select(.security_advisory.severity == "critical" or .security_advisory.severity == "high")
-  ]
-  # Sort array so critical alerts come first
+echo "Building Markdown table for Dependabot alerts..."
+
+ALERTS_TABLE=$(jq -r '
+  # Ensure we have an array
+  if type == "array" then . else [] end
+  # Filter only critical or high alerts
+  | map(select(.security_advisory.severity == "critical" or .security_advisory.severity == "high"))
+  # Sort critical first
   | sort_by(.security_advisory.severity | if . == "critical" then 0 else 1 end)
-  # Build table rows
+  # Build Markdown table
   | (["Severity", "Summary (link)", "Created At"],
      ["---", "---", "---"],
      .[] | [
@@ -67,7 +69,8 @@ ALERTS_TABLE=$(echo "$ALERTS" | jq -r '
   | split("\n")
   | map(" | " + . + " |")
   | .[]
-')
+' alerts.json)
+
 
 
 # Build the PR comment
