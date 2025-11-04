@@ -33,7 +33,7 @@ jobs:
           sudo apt-get install -y jq
 
       - name: "Make script executable"
-        run: chmod +x ./report-dependabot-alerts.sh
+        run: chmod +x .github/scripts/report-dependabot-alerts.sh
         # Assumes your script is in the root. Adjust path if needed.
 
       - name: "Run Dependabot Alert Script"
@@ -45,4 +45,4 @@ jobs:
         run: |
           # ${{ github.repository }} provides the "owner/repo" string.
           # ${{ github.event.pull_request.number }} provides the PR number.
-          ./report-dependabot-alerts.sh "${{ github.repository }}" "${{ github.event.pull_request.number }}"
+          .github/scripts/report-dependabot-alerts.sh "${{ github.repository }}" "${{ github.event.pull_request.number }}"
