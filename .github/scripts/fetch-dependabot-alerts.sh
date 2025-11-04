@@ -48,19 +48,23 @@ fi
 echo "Building Markdown table for Dependabot alerts..."
 
 ALERTS_TABLE=$(echo "$ALERTS" | jq -r '
-  (["Severity", "Summary (link)", "Created At"],
-   ["---", "---", "---"],
-   (.[] | select(.security_advisory.severity == "critical" or .security_advisory.severity == "high") | [
-     .security_advisory.severity,
-     "[\(.security_advisory.summary)](\(.html_url))",
-     (.created_at | split("T")[0])
-   ]))
+  # Select only high or critical alerts and sort by severity
+  ( .[]
+    | select(.security_advisory.severity == "critical" or .security_advisory.severity == "high")
+    | {severity: .security_advisory.severity, summary: .security_advisory.summary, html_url: .html_url, created_at: .created_at}
+  )
+  | sort_by(.severity | if . == "critical" then 0 else 1 end)
+  | (["Severity", "Summary (link)", "Created At"],
+     ["---", "---", "---"],
+     .[]
+     | [.severity, "[\(.summary)](\(.html_url))", (.created_at | split("T")[0])])
   | @tsv
   | gsub("\t"; " | ")
   | split("\n")
   | map(" | " + . + " |")
   | .[]
 ')
+
 
 # Build the PR comment
 COMMENT_BODY=$(cat <<EOF
