@@ -50,10 +50,8 @@ echo "Building Markdown table for Dependabot alerts..."
 echo "Building Markdown table for Dependabot alerts..."
 
 ALERTS_TABLE=$(jq -r '
-  # Ensure we have an array
-  if type == "array" then . else [] end
   # Filter only critical or high alerts
-  | map(select(.security_advisory.severity == "critical" or .security_advisory.severity == "high"))
+  [.[] | select(.security_advisory.severity == "critical" or .security_advisory.severity == "high")]
   # Sort critical first
   | sort_by(.security_advisory.severity | if . == "critical" then 0 else 1 end)
   # Build Markdown table
@@ -61,7 +59,7 @@ ALERTS_TABLE=$(jq -r '
      ["---", "---", "---"],
      .[] | [
        .security_advisory.severity,
-       "[\(.security_advisory.summary)](\(.htmlUrl))",
+       "[\(.security_advisory.summary)](\(.html_url))",
        (.created_at | split("T")[0])
      ])
   | @tsv
@@ -70,6 +68,7 @@ ALERTS_TABLE=$(jq -r '
   | map(" | " + . + " |")
   | .[]
 ' alerts.json)
+
 
 
 
