@@ -24,14 +24,13 @@ fi
 echo "$RESPONSE" > alerts.json
 echo "[INFO] API raw response saved to alerts.json"
 
-# Normalize JSON so it works whether the root is an array or an object with 'alerts'
-ALERTS=$(jq 'if type == "object" and has("alerts") then .alerts else . end' alerts.json)
+# Normalize: Some GitHub responses are objects with a 'alerts' array
+ALERTS=$(jq '.alerts // .' alerts.json)
 
 # Count critical and high alerts
 CRITICAL=$(echo "$ALERTS" | jq '[.[] | select(.security_advisory.severity == "critical")] | length')
 HIGH=$(echo "$ALERTS" | jq '[.[] | select(.security_advisory.severity == "high")] | length')
 TOTAL=$((CRITICAL + HIGH))
-
 
 # Output for GitHub Actions
 echo "critical=$CRITICAL" >> "$GITHUB_OUTPUT"
@@ -47,6 +46,7 @@ fi
 
 echo "Building Markdown table for Dependabot alerts..."
 
+# Generate Markdown table
 ALERTS_TABLE=$(echo "$ALERTS" | jq -r '
   # Get current timestamp in seconds
   (now | floor) as $now
@@ -61,10 +61,9 @@ ALERTS_TABLE=$(echo "$ALERTS" | jq -r '
                .security_advisory.severity,
                "[\(.security_advisory.summary)](\(.html_url))",
                (.created_at | split("T")[0]),
-               # Calculate status based on age
-               (if $now - $created > 30*24*3600 then "Critical"
-                elif $now - $created > 90*24*3600 then "High"
-                else "Normal" end)
+               # Status column logic
+               (if $now - $created > 30*24*3600 then "❌ Crossed Remediation Timeline"
+                else "⚠️ Close to Remediation Timeline" end)
              ]
          )
      )
@@ -75,7 +74,7 @@ ALERTS_TABLE=$(echo "$ALERTS" | jq -r '
   | map(" | " + . + " |")
   | .[]
 ')
-echo "Markdown table built."
+
 
 # Build the PR comment
 COMMENT_BODY=$(cat <<EOF
