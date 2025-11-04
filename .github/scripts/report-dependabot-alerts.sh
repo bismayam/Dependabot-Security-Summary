@@ -62,16 +62,16 @@ echo "Fetching Dependabot alerts for $REPO..."
 # It requests the fields you specified: severity, summary, path, created_at,
 # and htmlUrl (for the hyperlink).
 GRAPHQL_QUERY='
-query($owner: String!, $repo: String!) {
-  repository(owner: $owner, name: $repo) {
-    vulnerabilityAlerts(first: 100, states: OPEN) {
+query($owner: String!, $name: String!) {
+  repository(owner: $owner, name: $name) {
+    vulnerabilityAlerts(first: 10) {
       nodes {
-        createdAt
         htmlUrl
+        createdAt
         securityVulnerability {
           severity
         }
-        security_advisory {
+        securityAdvisory {
           summary
         }
       }
@@ -86,17 +86,19 @@ query($owner: String!, $repo: String!) {
 # and builds a table row, formatting the summary as a Markdown link.
 JQ_FILTER='
 (
-  ["Severity", "Summary", "Path", "Created At"],
+  ["Severity", "Summary (link)", "Created At", "HTML URL"],
   ["---", "---", "---", "---"],
   (.data.repository.vulnerabilityAlerts.nodes[] | [
     .securityVulnerability.severity,
-    "[\(.security_advisory.summary)](\(.htmlUrl))",
-    (.createdAt | split("T") | .[0])
+    "[\(.securityAdvisory.summary)](\(.htmlUrl))",
+    (.createdAt | split("T")[0]),
+    .htmlUrl
   ])
 )
 | @tsv
 | gsub("\t"; " | ")
-| "\(. ) |"
+| . as $lines
+| ($lines | map(" | " + . + " |")) | .[]
 '
 
 # --- 3. Execute the Commands ---
@@ -116,13 +118,6 @@ GRAPHQL_DATA=$(GITHUB_TOKEN="$PAT_TOKEN" gh api graphql \
 if [ -z "$GRAPHQL_DATA" ]; then
   echo "Error: Failed to fetch data from GitHub API. Check GH_API_TOKEN permissions."
   exit 1
-fi
-
-ALERT_COUNT=$(echo "$GRAPHQL_DATA" | jq '.data.repository.vulnerabilityAlerts.nodes | length')
-
-if [ "$ALERT_COUNT" -eq 0 ]; then
-  echo "✅ No open Dependabot alerts found."
-  exit 0
 fi
 
 echo "Posting Dependabot alerts in PR $PR_NUMBER..."
