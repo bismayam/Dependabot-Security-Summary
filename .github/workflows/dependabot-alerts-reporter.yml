@@ -42,6 +42,7 @@ jobs:
           # and gets its permissions from the 'permissions' block above.
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           PAT_TOKEN: ${{ secrets.DEPENDABOT }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
         run: |
           # ${{ github.repository }} provides the "owner/repo" string.
           # ${{ github.event.pull_request.number }} provides the PR number.
