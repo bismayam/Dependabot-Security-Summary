@@ -48,19 +48,34 @@ fi
 echo "Building Markdown table for Dependabot alerts..."
 
 ALERTS_TABLE=$(echo "$ALERTS" | jq -r '
-  (["Severity", "Summary (link)", "Created At"],
-   ["---", "---", "---"],
-   (.[] | select(.security_advisory.severity == "critical" or .security_advisory.severity == "high") | [
-     .security_advisory.severity,
-     "[\(.security_advisory.summary)](\(.html_url))",
-     (.created_at | split("T")[0])
-   ]))
+  # Get current timestamp in seconds
+  (now | floor) as $now
+  | (["Severity", "Summary (link)", "Created At", "Status"],
+     ["---", "---", "---", "---"],
+     (.[] 
+       | select(.security_advisory.severity == "critical" or .security_advisory.severity == "high")
+       | (
+           # Parse created_at to seconds
+           (.created_at | strptime("%Y-%m-%dT%H:%M:%SZ") | mktime) as $created
+           | [
+               .security_advisory.severity,
+               "[\(.security_advisory.summary)](\(.html_url))",
+               (.created_at | split("T")[0]),
+               # Calculate status based on age
+               (if $now - $created > 30*24*3600 then "Critical"
+                elif $now - $created > 90*24*3600 then "High"
+                else "Normal" end)
+             ]
+         )
+     )
+  )
   | @tsv
   | gsub("\t"; " | ")
   | split("\n")
   | map(" | " + . + " |")
   | .[]
 ')
+echo "Markdown table built."
 
 # Build the PR comment
 COMMENT_BODY=$(cat <<EOF
