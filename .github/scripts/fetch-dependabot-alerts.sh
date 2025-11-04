@@ -6,19 +6,30 @@ PR_NUMBER=${PR_NUMBER}
 
 echo "Fetching open Dependabot alerts for $REPO ..."
 
-# Fetch open Dependabot alerts
+# Fetch open Dependabot alerts (force JSON output)
 RESPONSE=$(GITHUB_TOKEN="$PAT_TOKEN" gh api \
     "repos/$REPO/dependabot/alerts" \
     --method GET \
     --field state=open \
-    --field per_page=100)
+    --field per_page=100 \
+    --jq '.')
+
+# Ensure response is valid JSON
+if ! echo "$RESPONSE" | jq empty > /dev/null 2>&1; then
+    echo "❌ Error: API response is not valid JSON"
+    echo "$RESPONSE"
+    exit 1
+fi
 
 echo "$RESPONSE" > alerts.json
 echo "[INFO] API raw response saved to alerts.json"
 
-# Count alerts
-CRITICAL=$(jq '[.[] | select(.security_advisory.severity == "critical")] | length' alerts.json)
-HIGH=$(jq '[.[] | select(.security_advisory.severity == "high")] | length' alerts.json)
+# Normalize: Some GitHub responses are objects with a 'alerts' array
+ALERTS=$(jq '.alerts // .' alerts.json)
+
+# Count critical and high alerts
+CRITICAL=$(echo "$ALERTS" | jq '[.[] | select(.security_advisory.severity == "critical")] | length')
+HIGH=$(echo "$ALERTS" | jq '[.[] | select(.security_advisory.severity == "high")] | length')
 TOTAL=$((CRITICAL + HIGH))
 
 # Output for GitHub Actions
@@ -35,8 +46,8 @@ fi
 
 echo "Building Markdown table for Dependabot alerts..."
 
-# Generate Markdown table with jq
-ALERTS_TABLE=$(jq -r '
+# Generate Markdown table
+ALERTS_TABLE=$(echo "$ALERTS" | jq -r '
 (
   ["Severity", "Summary (link)", "Created At"],
   ["---", "---", "---"],
@@ -50,9 +61,9 @@ ALERTS_TABLE=$(jq -r '
 | gsub("\t"; " | ")
 | . as $lines
 | ($lines | map(" | " + . + " |")) | .[]
-' alerts.json)
+')
 
-# Build the full PR comment body
+# Build the PR comment
 COMMENT_BODY=$(cat <<EOF
 🔒 **Dependabot Security Summary**
 
@@ -72,7 +83,6 @@ EOF
 
 echo "Posting comment to PR #$PR_NUMBER..."
 
-# Post directly to PR comment
 gh api "repos/${REPO}/issues/${PR_NUMBER}/comments" \
     -f body="$COMMENT_BODY"
 
