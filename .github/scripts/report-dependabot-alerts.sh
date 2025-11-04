@@ -67,12 +67,11 @@ query($owner: String!, $repo: String!) {
     vulnerabilityAlerts(first: 100, states: OPEN) {
       nodes {
         createdAt
+        htmlUrl
         securityVulnerability {
           severity
         }
-        vulnerableManifestPath
-        htmlUrl
-        advisory {
+        security_advisory {
           summary
         }
       }
@@ -91,8 +90,7 @@ JQ_FILTER='
   ["---", "---", "---", "---"],
   (.data.repository.vulnerabilityAlerts.nodes[] | [
     .securityVulnerability.severity,
-    "[\(.advisory.summary)](\(.htmlUrl))",
-    "`\(.vulnerableManifestPath)`",
+    "[\(.security_advisory.summary)](\(.htmlUrl))",
     (.createdAt | split("T") | .[0])
   ])
 )
