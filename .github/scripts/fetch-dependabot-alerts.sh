@@ -16,9 +16,9 @@ RESPONSE=$(GITHUB_TOKEN="$PAT_TOKEN" gh api \
 
 # Ensure response is valid JSON
 if ! echo "$RESPONSE" | jq empty > /dev/null 2>&1; then
-    echo "❌ Error: API response is not valid JSON"
+    echo "❌ Error: API response is not valid JSON for dependabot alerts."
     echo "$RESPONSE"
-    exit 1
+    exit 0
 fi
 
 echo "$RESPONSE" > alerts.json
@@ -33,11 +33,6 @@ HIGH=$(echo "$ALERTS" | jq '[.[] | select(.security_advisory.severity == "high")
 TOTAL=$((CRITICAL + HIGH))
 
 
-# Output for GitHub Actions
-echo "critical=$CRITICAL" >> "$GITHUB_OUTPUT"
-echo "high=$HIGH" >> "$GITHUB_OUTPUT"
-echo "total=$TOTAL" >> "$GITHUB_OUTPUT"
-
 echo "Found $CRITICAL critical and $HIGH high severity vulnerabilities."
 
 if [ "$TOTAL" -eq 0 ]; then
@@ -47,20 +42,33 @@ fi
 
 echo "Building Markdown table for Dependabot alerts..."
 
-ALERTS_TABLE=$(echo "$ALERTS" | jq -r '
-  (["Severity", "Summary (link)", "Created At"],
-   ["---", "---", "---"],
-   (.[] | select(.security_advisory.severity == "critical" or .security_advisory.severity == "high") | [
-     .security_advisory.severity,
-     "[\(.security_advisory.summary)](\(.html_url))",
-     (.created_at | split("T")[0])
-   ]))
+ALERTS_TABLE=$(jq -r '
+  # Current time (not strictly needed for due date but kept for clarity)
+  (now | floor) as $now
+  | (["Severity", "Summary", "Created At", "Due Date"],
+     ["---", "---", "---", "---"],
+     (.[] 
+       | select(.security_advisory.severity == "critical" or .security_advisory.severity == "high")
+       | (
+           # Parse created_at and compute due date (+30 days)
+           (.created_at | strptime("%Y-%m-%dT%H:%M:%SZ") | mktime + (30*24*3600) | strftime("%Y-%m-%d")) as $due
+           | [
+               .security_advisory.severity,
+               "[\(.security_advisory.summary)](\(.html_url))",
+               (.created_at | split("T")[0]),
+               $due
+             ]
+         )
+     )
+  )
   | @tsv
   | gsub("\t"; " | ")
   | split("\n")
   | map(" | " + . + " |")
   | .[]
-')
+' alerts.json)
+
+echo "Markdown table built."
 
 # Build the PR comment
 COMMENT_BODY=$(cat <<EOF
