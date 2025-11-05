@@ -45,14 +45,14 @@ echo "Building Markdown table for Dependabot alerts..."
 ALERTS_TABLE=$(jq -r '
   (now | floor) as $now
   | (
-      ["Severity", "Summary (link)", "Created At", "Due Date"],
+      ["Severity", "Summary", "Created At", "Due Date"],
       ["---", "---", "---", "---"],
       (
         [.[] 
           | select(.security_advisory.severity == "critical" or .security_advisory.severity == "high")
           | (
-              # Set 30-day remediation timeline for all
-              30 as $days
+              # Set 7-day remediation timeline for all
+              7 as $days
               # Parse created_at and compute due date
               | (.created_at | strptime("%Y-%m-%dT%H:%M:%SZ") | mktime) as $created
               | ($created + ($days * 24 * 3600)) as $due_ts
