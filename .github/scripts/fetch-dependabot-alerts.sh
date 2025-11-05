@@ -51,8 +51,8 @@ ALERTS_TABLE=$(jq -r '
         [.[] 
           | select(.security_advisory.severity == "critical" or .security_advisory.severity == "high")
           | (
-              # Determine days to add based on severity
-              (if .security_advisory.severity == "critical" then 30 else 90 end) as $days
+              # Set 30-day remediation timeline for all
+              30 as $days
               # Parse created_at and compute due date
               | (.created_at | strptime("%Y-%m-%dT%H:%M:%SZ") | mktime) as $created
               | ($created + ($days * 24 * 3600)) as $due_ts
@@ -69,9 +69,9 @@ ALERTS_TABLE=$(jq -r '
                 }
             )
         ]
-        # Sort by due_ts ascending
+        # Sort by due_ts ascending (soonest first)
         | sort_by(.due_ts)
-        # Convert to rows
+        # Convert to table rows
         | .[] | [ .severity, "[\(.summary)](\(.link))", .created, .due_display ]
       )
     )
