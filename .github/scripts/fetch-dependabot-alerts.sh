@@ -6,6 +6,8 @@ PR_NUMBER=${PR_NUMBER}
 
 echo "Fetching open Dependabot alerts for $REPO ..."
 
+echo "Using PR number: $PR_NUMBER"
+
 # Fetch open Dependabot alerts (force JSON output)
 RESPONSE=$(GITHUB_TOKEN="$PAT_TOKEN" gh api \
     "repos/$REPO/dependabot/alerts" \
