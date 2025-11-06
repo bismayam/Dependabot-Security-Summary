@@ -57,7 +57,7 @@ ALERTS_TABLE=$(jq -r '
               | (.created_at | strptime("%Y-%m-%dT%H:%M:%SZ") | mktime) as $created
               | ($created + ($days * 24 * 3600)) as $due_ts
               | ($due_ts | strftime("%Y-%m-%d")) as $due_date
-              | (if $due_ts < $now then ($due_date + " ⚠️") else $due_date end) as $due_display
+              | (if $due_ts < $now then ("⚠️ " +$due_date) else $due_date end) as $due_display
               # Emit object for sorting
               | {
                   severity: .security_advisory.severity,
