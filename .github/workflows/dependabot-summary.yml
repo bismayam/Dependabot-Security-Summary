@@ -8,9 +8,12 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+        with:
+          repository: bismayam/Dependabot-Security-Summary
+          path: Dependabot-Security-Summary   # checkout into a subfolder
 
       - name: Run Dependabot Summary Script
-        run: bash .github/scripts/fetch-dependabot-alerts.sh
+        run: bash Dependabot-Security-Summary/.github/scripts/fetch-dependabot-alerts.sh
         env:
           PAT_TOKEN: ${{ secrets.DEPENDABOT }}
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
