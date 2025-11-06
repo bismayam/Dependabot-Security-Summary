@@ -2,6 +2,9 @@ name: Dependabot Summary Reusable Workflow
 
 on:
   workflow_call:
+    secrets:
+      DEPENDABOT:
+        required: true
 
 jobs:
   summary:
