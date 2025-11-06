@@ -2,6 +2,11 @@ name: Dependabot Summary Reusable Workflow
 
 on:
   workflow_call:
+    inputs:
+      DEPENDABOT:
+        description: "Personal Access Token for Dependabot"
+        required: true
+        type: string
 
 jobs:
   summary:
@@ -10,14 +15,12 @@ jobs:
       - uses: actions/checkout@v4
         with:
           repository: bismayam/Dependabot-Security-Summary
-          path: Dependabot-Security-Summary   # checkout into a subfolder
+          path: Dependabot-Security-Summary
 
       - name: Run Dependabot Summary Script
         run: bash Dependabot-Security-Summary/.github/scripts/fetch-dependabot-alerts.sh
         env:
-          PAT_TOKEN: ${{ secrets.DEPENDABOT }}
+          PAT_TOKEN: ${{ inputs.DEPENDABOT }}      # <-- now passed as input
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          TEST_TOKEN: ${{ secrets.TEST }}
           PR_NUMBER: ${{ github.event.pull_request.number }}
           GITHUB_REPOSITORY: ${{ github.repository }}
-
