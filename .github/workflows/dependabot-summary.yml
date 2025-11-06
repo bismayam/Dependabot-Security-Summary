@@ -17,6 +17,7 @@ jobs:
         env:
           PAT_TOKEN: ${{ secrets.DEPENDABOT }}
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_TOKEN: ${{ secrets.DEPENDABOT }}
           PR_NUMBER: ${{ github.event.pull_request.number }}
           GITHUB_REPOSITORY: ${{ github.repository }}
 
