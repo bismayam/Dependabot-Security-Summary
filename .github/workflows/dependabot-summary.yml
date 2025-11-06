@@ -2,9 +2,6 @@ name: Dependabot Summary Reusable Workflow
 
 on:
   workflow_call:
-    secrets:
-      DEPENDABOT:
-        required: true
 
 jobs:
   summary:
@@ -20,7 +17,7 @@ jobs:
         env:
           PAT_TOKEN: ${{ secrets.DEPENDABOT }}
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          GH_TOKEN: ${{ secrets.DEPENDABOT }}
+          TEST_TOKEN: ${{ secrets.TEST }}
           PR_NUMBER: ${{ github.event.pull_request.number }}
           GITHUB_REPOSITORY: ${{ github.repository }}
 
