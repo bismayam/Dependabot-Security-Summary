@@ -43,24 +43,39 @@ fi
 echo "Building Markdown table for Dependabot alerts..."
 
 ALERTS_TABLE=$(jq -r '
-  # Current time (not strictly needed for due date but kept for clarity)
   (now | floor) as $now
-  | (["Severity", "Summary", "Created At", "Due Date"],
-     ["---", "---", "---", "---"],
-     (.[] 
-       | select(.security_advisory.severity == "critical" or .security_advisory.severity == "high")
-       | (
-           # Parse created_at and compute due date (+30 days)
-           (.created_at | strptime("%Y-%m-%dT%H:%M:%SZ") | mktime + (30*24*3600) | strftime("%Y-%m-%d")) as $due
-           | [
-               .security_advisory.severity,
-               "[\(.security_advisory.summary)](\(.html_url))",
-               (.created_at | split("T")[0]),
-               $due
-             ]
-         )
-     )
-  )
+  | (
+      ["Severity", "Summary", "Path", "Created At", "Due Date"],
+      ["---", "---", "---", "---", "---"],
+      (
+        [.[] 
+          | select(.security_advisory.severity == "critical" or .security_advisory.severity == "high")
+          | (
+              # 7-day remediation timeline for all severities
+              7 as $days
+              # Parse created_at and compute due date
+              | (.created_at | strptime("%Y-%m-%dT%H:%M:%SZ") | mktime) as $created
+              | ($created + ($days * 24 * 3600)) as $due_ts
+              | ($due_ts | strftime("%Y-%m-%d")) as $due_date
+              | (if $due_ts < $now then ("⚠️ " +$due_date) else $due_date end) as $due_display
+              # Emit object for sorting
+              | {
+                  severity: .security_advisory.severity,
+                  summary: .security_advisory.summary,
+                  link: .html_url,
+                  manifest: .dependency.manifest_path,
+                  created: (.created_at | split("T")[0]),
+                  due_ts: $due_ts,
+                  due_display: $due_display
+                }
+            )
+        ]
+        # Sort by due date ascending
+        | sort_by(.due_ts)
+        # Format into Markdown table rows
+        | .[] | [ .severity, "[\(.summary)](\(.link))", .manifest, .created, .due_display ]
+      )
+    )
   | @tsv
   | gsub("\t"; " | ")
   | split("\n")
@@ -68,22 +83,14 @@ ALERTS_TABLE=$(jq -r '
   | .[]
 ' alerts.json)
 
+
 echo "Markdown table built."
 
 # Build the PR comment
 COMMENT_BODY=$(cat <<EOF
-🔒 **Dependabot Security Summary**
-
-| Severity | Count |
-|-----------|--------|
-| 🟥 Critical | ${CRITICAL} |
-| 🟧 High | ${HIGH} |
-
-> This data comes directly from the Security → Dependabot Alerts tab for this repository.
+🔒 Dependabot Security Summary (${CRITICAL} Critical, ${HIGH} High Vulnerabilities)
 
 ---
-
-### ⚠️ Detailed Alerts
 ${ALERTS_TABLE}
 EOF
 )
