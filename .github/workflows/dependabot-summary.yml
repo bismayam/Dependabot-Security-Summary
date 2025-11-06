@@ -3,11 +3,6 @@ name: Dependabot Summary Reusable Workflow
 on:
   workflow_call:
 
-permissions:
-  contents: read
-  security-events: read
-  pull-requests: write
-
 jobs:
   summary:
     runs-on: ubuntu-latest

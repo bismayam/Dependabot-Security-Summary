@@ -8,10 +8,8 @@ echo "Fetching open Dependabot alerts for $REPO ..."
 
 echo "Using PR number: $PR_NUMBER"
 
-echo "GH_TOKEN is set: ${GH_TOKEN:+Yes}"
-
 # Fetch open Dependabot alerts (force JSON output)
-RESPONSE=$(GH_TOKEN="$GH_TOKEN" gh api \
+RESPONSE=$(GITHUB_TOKEN="$PAT_TOKEN" gh api \
     "repos/$REPO/dependabot/alerts" \
     --method GET \
     --field state=open \
