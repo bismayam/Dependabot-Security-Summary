@@ -1,0 +1,19 @@
+name: Dependabot Summary Reusable Workflow
+
+on:
+  workflow_call:
+
+jobs:
+  summary:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Run Dependabot Summary Script
+        run: bash .github/scripts/fetch-dependabot-alerts.sh
+        env:
+          PAT_TOKEN: ${{ secrets.DEPENDABOT }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+          GITHUB_REPOSITORY: ${{ github.repository }}
+

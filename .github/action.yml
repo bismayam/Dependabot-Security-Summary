@@ -1,0 +1,32 @@
+name: "Dependabot Security Summary"
+description: "Fetch Dependabot alerts, summarize them, and post the results to a pull request."
+author: "bismayam"
+
+branding:
+  icon: "shield"
+  color: "purple"
+
+inputs:
+  token:
+    description: "GitHub or Personal Access Token with permissions to read Dependabot alerts."
+    required: true
+  pr-number:
+    description: "Pull Request number to post the summary comment to."
+    required: false
+
+runs:
+  using: "composite"
+  steps:
+    - name: Checkout repository
+      uses: actions/checkout@v4
+
+    - name: Run Dependabot Summary Script
+      shell: bash
+      run: |
+        echo "Running Dependabot Security Summary Action..."
+        bash .github/scripts/fetch-dependabot-alerts.sh
+      env:
+        GITHUB_TOKEN: ${{ inputs.token }}
+        PAT_TOKEN: ${{ inputs.token }}
+        GITHUB_REPOSITORY: ${{ github.repository }}
+        PR_NUMBER: ${{ inputs.pr-number }}
