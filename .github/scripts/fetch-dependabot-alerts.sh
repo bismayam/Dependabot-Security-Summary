@@ -45,34 +45,35 @@ echo "Building Markdown table for Dependabot alerts..."
 ALERTS_TABLE=$(jq -r '
   (now | floor) as $now
   | (
-      ["Severity", "Summary", "Created At", "Due Date"],
-      ["---", "---", "---", "---"],
+      ["Severity", "Summary", "Path", "Created At", "Due Date"],
+      ["---", "---", "---", "---", "---"],
       (
         [.[] 
           | select(.security_advisory.severity == "critical" or .security_advisory.severity == "high")
           | (
-              # Set 7-day remediation timeline for all
+              # 7-day remediation timeline for all severities
               7 as $days
               # Parse created_at and compute due date
               | (.created_at | strptime("%Y-%m-%dT%H:%M:%SZ") | mktime) as $created
               | ($created + ($days * 24 * 3600)) as $due_ts
               | ($due_ts | strftime("%Y-%m-%d")) as $due_date
               | (if $due_ts < $now then ($due_date + " ⚠️") else $due_date end) as $due_display
-              # Emit object with sortable due_ts
+              # Emit object for sorting
               | {
                   severity: .security_advisory.severity,
                   summary: .security_advisory.summary,
                   link: .html_url,
+                  manifest: .dependency.manifest_path,
                   created: (.created_at | split("T")[0]),
                   due_ts: $due_ts,
                   due_display: $due_display
                 }
             )
         ]
-        # Sort by due_ts ascending (soonest first)
+        # Sort by due date ascending
         | sort_by(.due_ts)
-        # Convert to table rows
-        | .[] | [ .severity, "[\(.summary)](\(.link))", .created, .due_display ]
+        # Format into Markdown table rows
+        | .[] | [ .severity, "[\(.summary)](\(.link))", .manifest, .created, .due_display ]
       )
     )
   | @tsv
@@ -81,6 +82,7 @@ ALERTS_TABLE=$(jq -r '
   | map(" | " + . + " |")
   | .[]
 ' alerts.json)
+
 
 echo "Markdown table built."
 
