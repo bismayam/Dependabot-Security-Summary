@@ -1,12 +1,13 @@
 name: Dependabot Summary Reusable Workflow
 
+permissions:
+  id-token: write
+  contents: read
+  actions: write
+  pull-requests: write
+
 on:
   workflow_call:
-    inputs:
-      DEPENDABOT:
-        description: "Personal Access Token for Dependabot"
-        required: true
-        type: string
 
 jobs:
   summary:
@@ -20,7 +21,7 @@ jobs:
       - name: Run Dependabot Summary Script
         run: bash Dependabot-Security-Summary/.github/scripts/fetch-dependabot-alerts.sh
         env:
-          PAT_TOKEN: ${{ inputs.DEPENDABOT }}      # <-- now passed as input
+          PAT_TOKEN: ${{ secrets.DEPENDABOT }}
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           PR_NUMBER: ${{ github.event.pull_request.number }}
           GITHUB_REPOSITORY: ${{ github.repository }}
