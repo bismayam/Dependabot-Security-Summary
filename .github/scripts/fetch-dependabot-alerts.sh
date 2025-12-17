@@ -1,8 +1,8 @@
 #!/bin/bash
 set -euo pipefail
 
-REPO=${GITHUB_REPOSITORY}
-PR_NUMBER=${PR_NUMBER}
+REPO="${GITHUB_REPOSITORY}"
+PR_NUMBER="${PR_NUMBER}"
 
 echo "Fetching open Dependabot alerts for $REPO ..."
 echo "Using PR number: $PR_NUMBER"
@@ -11,28 +11,27 @@ echo "Using PR number: $PR_NUMBER"
 # Fetch open Dependabot alerts
 # -------------------------------------------------
 RESPONSE=$(GITHUB_TOKEN="$PAT_TOKEN" gh api \
-    "repos/$REPO/dependabot/alerts" \
-    --method GET \
-    --field state=open \
-    --field per_page=100 \
-    --jq '.')
+  "repos/$REPO/dependabot/alerts" \
+  --method GET \
+  --field state=open \
+  --field per_page=100 \
+  --jq '.')
 
-if ! echo "$RESPONSE" | jq empty > /dev/null 2>&1; then
-    echo "❌ Error: API response is not valid JSON for dependabot alerts."
-    echo "$RESPONSE"
-    exit 0
+if ! echo "$RESPONSE" | jq empty >/dev/null 2>&1; then
+  echo "❌ Error: API response is not valid JSON."
+  echo "$RESPONSE"
+  exit 0
 fi
 
 echo "$RESPONSE" > alerts.json
-echo "$RESPONSE"
 echo "[INFO] API raw response saved to alerts.json"
 
 ALERTS=$(jq 'if type == "object" and has("alerts") then .alerts else . end' alerts.json)
 
 # -------------------------------------------------
-# Get top-level paths changed in PR
+# Extract module names from PR files (initial path)
 # -------------------------------------------------
-mapfile -t FILES < <(
+mapfile -t MODULES < <(
   gh api "repos/${REPO}/pulls/${PR_NUMBER}/files" \
     --paginate \
     --jq '.[].filename' |
@@ -40,18 +39,31 @@ mapfile -t FILES < <(
   sort -u
 )
 
-echo "Top-level paths changed in PR:"
-printf '  - %s\n' "${FILES[@]}"
+if [ "${#MODULES[@]}" -eq 0 ]; then
+  echo "ℹ️ No files found in PR."
+  exit 0
+fi
+
+echo "Modules changed in PR:"
+printf '  - %s\n' "${MODULES[@]}"
 
 # -------------------------------------------------
-# Filter alerts by PR paths
+# Filter alerts by module name
 # -------------------------------------------------
-FILTERED_ALERTS=$(jq --argjson paths "$(printf '%s\n' "${FILES[@]}" | jq -R . | jq -s .)" '
+FILTERED_ALERTS=$(jq --argjson modules "$(printf '%s\n' "${MODULES[@]}" | jq -R . | jq -s .)" '
   [
     .[] |
     select(
-      .dependency.manifest_path as $path
-      | any($paths[]; $path | startswith(.))
+      .dependency.manifest_path as $manifest
+      | (
+          # Root-level manifest applies to all modules
+          ($manifest | contains("/") | not)
+          or
+          (
+            ($manifest | split("/")[0]) as $manifest_module
+            | any($modules[]; . == $manifest_module)
+          )
+        )
     )
   ]
 ' <<<"$ALERTS")
@@ -59,8 +71,8 @@ FILTERED_ALERTS=$(jq --argjson paths "$(printf '%s\n' "${FILES[@]}" | jq -R . | 
 MATCHING_COUNT=$(echo "$FILTERED_ALERTS" | jq 'length')
 
 if [ "$MATCHING_COUNT" -eq 0 ]; then
-    echo "✅ No Dependabot alerts match files changed in this PR."
-    exit 0
+  echo "✅ No Dependabot alerts match the modified modules."
+  exit 0
 fi
 
 # -------------------------------------------------
@@ -70,23 +82,23 @@ CRITICAL=$(echo "$FILTERED_ALERTS" | jq '[.[] | select(.security_advisory.severi
 HIGH=$(echo "$FILTERED_ALERTS" | jq '[.[] | select(.security_advisory.severity == "high")] | length')
 TOTAL=$((CRITICAL + HIGH))
 
-echo "Found $CRITICAL critical and $HIGH high severity vulnerabilities affecting this PR."
+echo "Found $CRITICAL critical and $HIGH high severity vulnerabilities affecting modified modules."
 
 if [ "$TOTAL" -eq 0 ]; then
-    echo "✅ No High or Critical Dependabot alerts for modified paths."
-    exit 0
+  echo "✅ No High or Critical vulnerabilities in modified modules."
+  exit 0
 fi
 
 # -------------------------------------------------
-# Build Markdown table (filtered alerts only)
+# Build Markdown table
 # -------------------------------------------------
-echo "Building Markdown table for Dependabot alerts..."
+echo "Building Markdown table..."
 
 ALERTS_TABLE=$(echo "$FILTERED_ALERTS" | jq -r '
   (now | floor) as $now
   | (
-      ["Severity", "Summary", "Path", "Created At", "Due Date"],
-      ["---", "---", "---", "---", "---"],
+      ["Severity", "Summary", "Module", "Manifest Path", "Created At", "Due Date"],
+      ["---", "---", "---", "---", "---", "---"],
       (
         [.[] 
           | select(.security_advisory.severity == "critical" or .security_advisory.severity == "high")
@@ -100,6 +112,12 @@ ALERTS_TABLE=$(echo "$FILTERED_ALERTS" | jq -r '
                   severity: .security_advisory.severity,
                   summary: .security_advisory.summary,
                   link: .html_url,
+                  module: (
+                    if (.dependency.manifest_path | contains("/"))
+                    then (.dependency.manifest_path | split("/")[0])
+                    else "root"
+                    end
+                  ),
                   manifest: .dependency.manifest_path,
                   created: (.created_at | split("T")[0]),
                   due_ts: $due_ts,
@@ -108,7 +126,14 @@ ALERTS_TABLE=$(echo "$FILTERED_ALERTS" | jq -r '
             )
         ]
         | sort_by(.due_ts)
-        | .[] | [ .severity, "[\(.summary)](\(.link))", .manifest, .created, .due_display ]
+        | .[] | [
+            .severity,
+            "[\(.summary)](\(.link))",
+            .module,
+            .manifest,
+            .created,
+            .due_display
+          ]
       )
     )
   | @tsv
@@ -124,9 +149,12 @@ echo "Markdown table built."
 # Post PR comment
 # -------------------------------------------------
 COMMENT_BODY=$(cat <<EOF
-🔒 Dependabot Security Summary (Scoped to PR Changes)
+🔒 **Dependabot Security Summary (Scoped to Modified Modules)**
 
-**${CRITICAL} Critical**, **${HIGH} High** vulnerabilities affecting modified paths.
+**${CRITICAL} Critical**, **${HIGH} High** vulnerabilities detected.
+
+**Affected modules:**  
+$(printf '%s\n' "${MODULES[@]}" | sed 's/^/- /')
 
 ---
 ${ALERTS_TABLE}
@@ -136,6 +164,6 @@ EOF
 echo "Posting comment to PR #$PR_NUMBER..."
 
 gh api "repos/${REPO}/issues/${PR_NUMBER}/comments" \
-    -f body="$COMMENT_BODY"
+  -f body="$COMMENT_BODY"
 
-echo "✅ Comment with scoped Dependabot alert details posted successfully!"
+echo "✅ Dependabot security summary posted successfully."
