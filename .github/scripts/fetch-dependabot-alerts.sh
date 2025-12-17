@@ -48,7 +48,7 @@ echo "Modules changed in PR:"
 printf '  - %s\n' "${MODULES[@]}"
 
 # -------------------------------------------------
-# Filter alerts by module name
+# Filter alerts by module name ONLY
 # -------------------------------------------------
 FILTERED_ALERTS=$(jq --argjson modules "$(printf '%s\n' "${MODULES[@]}" | jq -R . | jq -s .)" '
   [
@@ -56,9 +56,9 @@ FILTERED_ALERTS=$(jq --argjson modules "$(printf '%s\n' "${MODULES[@]}" | jq -R 
     select(
       .dependency.manifest_path as $manifest
       | (
-          # Root-level manifest applies to all modules
-          ($manifest | contains("/") | not)
-          or
+          # Only consider manifests inside a module
+          ($manifest | contains("/"))
+          and
           (
             ($manifest | split("/")[0]) as $manifest_module
             | any($modules[]; . == $manifest_module)
@@ -112,12 +112,7 @@ ALERTS_TABLE=$(echo "$FILTERED_ALERTS" | jq -r '
                   severity: .security_advisory.severity,
                   summary: .security_advisory.summary,
                   link: .html_url,
-                  module: (
-                    if (.dependency.manifest_path | contains("/"))
-                    then (.dependency.manifest_path | split("/")[0])
-                    else "root"
-                    end
-                  ),
+                  module: (.dependency.manifest_path | split("/")[0]),
                   manifest: .dependency.manifest_path,
                   created: (.created_at | split("T")[0]),
                   due_ts: $due_ts,
