@@ -8,6 +8,10 @@ permissions:
 
 on:
   workflow_call:
+    inputs:
+      monorepo:
+        required: false
+        type: boolean
     secrets:
       DEPENDABOT:
         required: true
@@ -28,3 +32,4 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           PR_NUMBER: ${{ github.event.pull_request.number }}
           GITHUB_REPOSITORY: ${{ github.repository }}
+          MONOREPO: ${{ inputs.monorepo || false }}
