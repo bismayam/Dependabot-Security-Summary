@@ -3,6 +3,7 @@ set -euo pipefail
 
 REPO="${GITHUB_REPOSITORY}"
 PR_NUMBER="${PR_NUMBER}"
+MONOREPO="${MONOREPO:-false}"  # <- expects "true" or "false"
 
 echo "Fetching open Dependabot alerts for $REPO ..."
 echo "Using PR number: $PR_NUMBER"
@@ -27,10 +28,12 @@ echo "$RESPONSE" > alerts.json
 echo "[INFO] API raw response saved to alerts.json"
 
 ALERTS=$(jq 'if type == "object" and has("alerts") then .alerts else . end' alerts.json)
+FILTERED_ALERTS=""
 
 # -------------------------------------------------
 # Extract module names from PR files (initial path)
 # -------------------------------------------------
+if [ "$MONOREPO" == "true" ]; then
 mapfile -t MODULES < <(
   gh api "repos/${REPO}/pulls/${PR_NUMBER}/files" \
     --paginate \
@@ -75,6 +78,12 @@ if [ "$MATCHING_COUNT" -eq 0 ]; then
   exit 0
 fi
 
+else
+
+FILTERED_ALERTS="$ALERTS"
+
+fi
+
 # -------------------------------------------------
 # Count severities (filtered only)
 # -------------------------------------------------
@@ -97,8 +106,8 @@ echo "Building Markdown table..."
 ALERTS_TABLE=$(echo "$FILTERED_ALERTS" | jq -r '
   (now | floor) as $now
   | (
-      ["Severity", "Summary", "Module", "Manifest Path", "Created At", "Due Date"],
-      ["---", "---", "---", "---", "---", "---"],
+      ["Severity", "Summary", "Path", "Created At", "Due Date"],
+      ["---", "---", "---", "---", "---"],
       (
         [.[] 
           | select(.security_advisory.severity == "critical" or .security_advisory.severity == "high")
@@ -112,7 +121,6 @@ ALERTS_TABLE=$(echo "$FILTERED_ALERTS" | jq -r '
                   severity: .security_advisory.severity,
                   summary: .security_advisory.summary,
                   link: .html_url,
-                  module: (.dependency.manifest_path | split("/")[0]),
                   manifest: .dependency.manifest_path,
                   created: (.created_at | split("T")[0]),
                   due_ts: $due_ts,
@@ -124,7 +132,6 @@ ALERTS_TABLE=$(echo "$FILTERED_ALERTS" | jq -r '
         | .[] | [
             .severity,
             "[\(.summary)](\(.link))",
-            .module,
             .manifest,
             .created,
             .due_display
@@ -147,9 +154,6 @@ COMMENT_BODY=$(cat <<EOF
 🔒 **Dependabot Security Summary (Scoped to Modified Modules)**
 
 **${CRITICAL} Critical**, **${HIGH} High** vulnerabilities detected.
-
-**Affected modules:**  
-$(printf '%s\n' "${MODULES[@]}" | sed 's/^/- /')
 
 ---
 ${ALERTS_TABLE}
